@@ -23,9 +23,13 @@ class Application {
         }
 
         @Bean
-        fun echoWebSocketHandler(): WebSocketHandler {
-            return WebSocketHandler { session -> session.send(session.receive()) }
-        }
+        fun echoWebSocketHandler() =
+            WebSocketHandler { session ->
+                val publisher = session.receive().doOnNext {
+                    println(it.payloadAsText)
+                }
+                session.send(publisher).doFinally { println("Disconnected") }
+            }
 
         @Bean
         fun webSocketURLMapping(): HandlerMapping {
