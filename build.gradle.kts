@@ -1,0 +1,53 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.springframework.boot.gradle.tasks.bundling.BootJar
+
+plugins {
+    val kotlinVersion = "1.3.11"
+    val springBootVersion = "2.1.1.RELEASE"
+    val springDependencyManagementVersion = "1.0.6.RELEASE"
+
+    base
+    kotlin("jvm") version kotlinVersion
+    id("io.spring.dependency-management") version springDependencyManagementVersion
+    id("org.springframework.boot") version springBootVersion
+    id("org.jetbrains.kotlin.plugin.spring") version kotlinVersion
+}
+
+val disruptorVersion: String by project
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+    implementation("org.springframework.boot:spring-boot-starter-log4j2")
+    implementation("org.springframework.boot:spring-boot-starter-websocket")
+    implementation("org.springframework.boot:spring-boot-starter-webflux") {
+        exclude(module = "spring-boot-starter-tomcat") // we use Netty server
+    }
+    implementation("com.lmax:disruptor:$disruptorVersion") // Log4j2 async appender
+}
+
+configurations.all {
+    exclude(module = "spring-boot-starter-logging")
+}
+
+tasks {
+    withType<KotlinCompile> {
+        kotlinOptions {
+            jvmTarget = "1.8"
+        }
+    }
+
+    /*
+    // Don't need this yet
+    withType<Test> {
+        useJUnitPlatform()
+    }
+    */
+
+    withType<BootJar> {
+        mainClassName = "com.hiper2d.ApplicationKt"
+    }
+}
