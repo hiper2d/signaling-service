@@ -8,8 +8,9 @@ import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.reactive.HandlerMapping
 import org.springframework.web.reactive.handler.SimpleUrlHandlerMapping
 import org.springframework.web.reactive.socket.WebSocketHandler
-import org.springframework.web.reactive.socket.WebSocketSession
 import org.springframework.web.reactive.socket.server.support.WebSocketHandlerAdapter
+import reactor.core.publisher.Flux
+import reactor.core.publisher.UnicastProcessor
 
 
 @SpringBootApplication
@@ -23,28 +24,19 @@ class Application {
 
         @Bean
         fun echoWebSocketHandler(): WebSocketHandler {
-            val sessions = mutableSetOf<WebSocketSession>()
+            val processor = UnicastProcessor.create<String>()
+            val events = processor.replay(25).autoConnect()
+            val outputEvents = Flux.from(events)
 
             return WebSocketHandler { session ->
                 val sessionId = session.id
-                val output = session.receive()
-                    .doOnSubscribe {
-                        println("Session $sessionId has been subscribed")
-                        sessions.add(session)
-                    }
-                    .map { msg ->
-                        var tmp = msg
-                        sessions.forEach {
-                            tmp = it.textMessage(it.id)
-                        }
-                        tmp
-                    }
-                    .doFinally {
-                        sessions.remove(session)
-                        println("Session $sessionId has been terminated")
-                    }
+                session.receive()
+                    .doFinally { println("Session $sessionId has been terminated") }
+                    .subscribe(
+                        { processor.onNext(it.payloadAsText) }, {}, {}
+                    )
 
-                session.send(output).doFinally { println("Output Stream Disconnected") }
+                session.send(outputEvents.map { session.textMessage(it) }).doFinally { println("Output Stream Disconnected") }
             }
         }
 
