@@ -10,6 +10,7 @@ import org.springframework.web.reactive.handler.SimpleUrlHandlerMapping
 import org.springframework.web.reactive.socket.WebSocketHandler
 import org.springframework.web.reactive.socket.server.support.WebSocketHandlerAdapter
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.core.publisher.UnicastProcessor
 
 
@@ -29,14 +30,14 @@ class Application {
             val outputEvents = Flux.from(events)
 
             return WebSocketHandler { session ->
-                val sessionId = session.id
-                session.receive()
-                    .doFinally { println("Session $sessionId has been terminated") }
-                    .subscribe(
-                        { processor.onNext(it.payloadAsText) }, {}, {}
-                    )
+                val input = session.receive()
+                    .doOnNext { processor.onNext(it.payloadAsText) }
+                    .then()
 
-                session.send(outputEvents.map { session.textMessage(it) }).doFinally { println("Output Stream Disconnected") }
+                val output = session.send(
+                    outputEvents.map(session::textMessage)
+                )
+                Mono.zip(input, output).then()
             }
         }
 
