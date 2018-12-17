@@ -9,9 +9,9 @@ import org.springframework.web.reactive.HandlerMapping
 import org.springframework.web.reactive.handler.SimpleUrlHandlerMapping
 import org.springframework.web.reactive.socket.WebSocketHandler
 import org.springframework.web.reactive.socket.server.support.WebSocketHandlerAdapter
+import reactor.core.publisher.EmitterProcessor
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.core.publisher.UnicastProcessor
 
 
 @SpringBootApplication
@@ -25,9 +25,8 @@ class Application {
 
         @Bean
         fun echoWebSocketHandler(): WebSocketHandler {
-            val processor = UnicastProcessor.create<String>()
-            val events = processor.replay(25).autoConnect()
-            val outputEvents = Flux.from(events)
+            val processor = EmitterProcessor.create<String>()
+            val outputEvents = Flux.from(processor)
 
             return WebSocketHandler { session ->
                 val input = session.receive()
